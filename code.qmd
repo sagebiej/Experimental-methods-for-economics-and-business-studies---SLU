@@ -1,7 +1,7 @@
 ---
 title: "Experimental methods for economics and business studies"
 author: "Julian Sagebiel"
-date: "November, 24 2023"
+date: "November, 26 2024"
 lang: en
 format: 
   html:
@@ -9,26 +9,12 @@ format:
     toc: true
 ---
 
-
-
 # Creating designs in R
 
-Once you have to create your own fractional factorial design, things quickly get complicated. In the following we will use the package `DoE.base` to create simple and more complex designs. The `mlogit` package allows us to create designs for choice experiments, but we will not use that here. 
+Once you have to create your own fractional factorial design, things quickly get complicated. In the following we will use the package `DoE.base` to create simple and more complex designs. The `mlogit` package allows us to create designs for choice experiments, but we will not use that here.
 
-The function `fac.design` creates full factorials.  
+The function `fac.design` creates full factorials.\
 The function `oa.design()` creates orthogonal arrays.
-
-
-
-
-
-```{r}
-secondobject<-"2+2"
-thirdobject <- c(1,1,1)
-fourthobject<-sum(thirdobject)
-```
-
-
 
 ```{r setup, include=TRUE , warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -38,7 +24,6 @@ library(tidylog)
 library(kableExtra)
 
 ```
-
 
 ## Full factorial
 
@@ -58,16 +43,15 @@ fullfact
 
 ```
 
+Lets look at correlations and level balance
 
-
+Correlations:
 
 ```{r}
 cor(fullfact)
 ```
 
-
-Lets look at correlations and level balance
-
+Level balance
 
 ```{r}
 table(fullfact$A)
@@ -76,7 +60,6 @@ table(fullfact$C)
 table(fullfact$D)
      
 ```
-
 
 The design is balanced and orthogonal. But what about two-way interaction effects. Can we estimate an interaction effect between A and B? We create a new variable called `AxB` by multiplying `A` and `B`
 
@@ -95,15 +78,13 @@ cor(fullfact)
 table(fullfact$AxB)
 ```
 
-
-Also the interaction effect is not correlated with other variables. 
+Also the interaction effect is not correlated with other variables.
 
 ## Exercise
 
 ## Orthogonal Arrays
 
-Now, lets investigate an orthogonal array and directly create all two-way and one three way interaction effects. 
-
+Now, lets investigate an orthogonal array and directly create all two-way and one three way interaction effects.
 
 ```{r}
 
@@ -117,14 +98,13 @@ ortharr
 
 ```
 
-
 ```{r}
 cor(ortharr)
 ```
+
 ## Exercise
 
 The design allows for several interaction effects but not for all. Which effects are problematic?
-
 
 # A quick simulation study
 
@@ -154,8 +134,7 @@ Lets assume we have a continuous outcome variable and no interaction effects
 
 $$Y=\widehat{Y}+\epsilon = cons+a*A+b*B+c*C+\epsilon$$
 
-We simulate the outcome by making up parameters (it can be any value), and substitute the values of our factors and parameters into the model equation. This is the predicted outcome $\widehat{Y}$. We then add a normally distributed error to add a random part to our data. This results in $Y$. The function `rnorm()` draws randomly from a normal distribution. The data now mimics a real dataset. A good simulation is hardly distinguishable from real data. 
-
+We simulate the outcome by making up parameters (it can be any value), and substitute the values of our factors and parameters into the model equation. This is the predicted outcome $\widehat{Y}$. We then add a normally distributed error to add a random part to our data. This results in $Y$. The function `rnorm()` draws randomly from a normal distribution. The data now mimics a real dataset. A good simulation is hardly distinguishable from real data.
 
 ```{r}
 cons= 2
@@ -169,7 +148,6 @@ sim_data<-sim_data %>%
          Y=Y_hat+epsilon)
 
 ```
-
 
 ```{r}
 kable(sim_data) %>% kable_styling() %>% scroll_box(width = "800px", height = "500px")
@@ -185,20 +163,17 @@ sim_data$epsilon = NULL
 
 Having simulated the data, we can now test the design by estimating a linear regression model. If we can retrieve our parameters, our design performs well. We can use this simulation to test our design, to determine the sample size and to assure that our models we envision will work.
 
-
 ```{r}
 summary(lm(Y~A+B+C, data = sim_data))
 ```
 
-We can easily recover our parameters, they seem unbiased and are highly significant. So with 400 observations, we can easily do the experiment when our assumptions of effect sizes and the error term are correct. But what would happen if an interaction effect between A and B is present? 
-
+We can easily recover our parameters, they seem unbiased and are highly significant. So with 400 observations, we can easily do the experiment when our assumptions of effect sizes and the error term are correct. But what would happen if an interaction effect between A and B is present?
 
 ## Interaction effects
 
 Now assume the true model is
 
 $$Y=cons+a*A+b*B+c*C+ab*A*B+\epsilon$$
-
 
 ```{r}
 cons= 2
@@ -215,42 +190,22 @@ sim_data<-sim_data %>%
 kable(sim_data) %>% kable_styling() %>% scroll_box(width = "800px", height = "500px")
 ```
 
-We estimate this model, which is the true model: 
+We estimate this model, which is the true model:
 
-$$Y=cons+a*A+b*B+c*C+ab*A*B+\epsilon$$
-## Excersise
-1. Simulate a dataset including the interaction AxB: ab=15
-2. Estimate a model with only a, b and c (main effects)
-3. Estimate a model with the interaction
-4. Estimate a model with a b and ab (imagine you did not know that C exists)
+$$Y=cons+a*A+b*B+c*C+ab*A*B+\epsilon$$ \## Excersise 1. Simulate a dataset including the interaction AxB: ab=15 2. Estimate a model with only a, b and c (main effects) 3. Estimate a model with the interaction 4. Estimate a model with a b and ab (imagine you did not know that C exists)
 
-
-
-
-Now lets try some misspecifications. 
-
-
+Now lets try some misspecifications.
 
 ```{r}
 summary(lm(Y~A+B+AxB, data = sim_data))
 ```
-Here we get very nicely looking model results. But the effect of C is now in AxB. We would be tempted to say there is a significant interaction effect. But this is actually the effect of C confounded with AxB. We have to be very careful here. Normally, we do not know the true model.
 
+Here we get very nicely looking model results. But the effect of C is now in AxB. We would be tempted to say there is a significant interaction effect. But this is actually the effect of C confounded with AxB. We have to be very careful here. When working with real data, we do not know the true model.
 
-We can play around with the simulation. We could, for example, change the standard deviation of our error term or the values of our coefficients. The higher the standard deviation of our error term relative to the values of our coefficients, the larger the sample size we need has to be. More on that will be part of Jens next excercise.
-
-
-
+We can play around with the simulation. We could, for example, change the standard deviation of our error term or the values of our coefficients. The higher the standard deviation of our error term relative to the values of our coefficients, the larger the sample size we need has to be. More on that will be part of this course later on.
 
 ## Exercise
 
-1. Repeat the simulation by changing the values of the parameters and by increasing the standard deviation of the error term.
+1.  Repeat the simulation by changing the values of the parameters and by increasing the standard deviation of the error term.
 
-2. Take the main effects model and determine the minimum sample size you need to get estimates which are significant on a 5% level.
-
-
-
-
-
-
-
+2.  Take the main effects model and determine the minimum sample size you need to get estimates which are significant on a 5% level.
