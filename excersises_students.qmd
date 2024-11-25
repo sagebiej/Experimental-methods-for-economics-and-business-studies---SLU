@@ -1,0 +1,296 @@
+---
+title: "Experimental methods for economics and business studies"
+author: "Julian Sagebiel"
+date: "November, 24 2023"
+lang: en
+format: 
+  html:
+    embed-resources: true
+    toc: true
+---
+
+
+
+# Creating designs in R
+
+Once you have to create your own fractional factorial design, things quickly get complicated. In the following we will use the package `DoE.base` to create simple and more complex designs. The `mlogit` package allows us to create designs for choice experiments, but we will not use that here. 
+
+The function `fac.design` creates full factorials.  
+The function `oa.design()` creates orthogonal arrays.
+
+
+
+
+
+```{r setup, include=TRUE , warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(DoE.base)
+library(dplyr)
+library(tidylog)
+library(kableExtra)
+
+```
+
+
+## Full factorial
+
+We will create a design with four factors with each two levels. The full factorial contains $2^4=16$ treatments. We will re-code the design in a way that one level takes the value $-1$ and the other level the value $1$. We use the `dplyr` package to make some data manipulations.
+
+```{r}
+
+
+fullfact <- fac.design(nlevels = 2 , nfactors = 4)  %>% 
+            as.data.frame() %>%
+            mutate(across(everything(), 
+                          ~ case_when(.==2 ~-1 , .==1 ~1))) 
+
+
+
+fullfact
+
+```
+
+
+
+
+```{r}
+cor(fullfact)
+```
+
+
+Lets look at correlations and level balance
+
+
+```{r}
+table(fullfact$A)
+table(fullfact$B)
+table(fullfact$C)
+table(fullfact$D)
+     
+```
+
+
+The design is balanced and orthogonal. But what about two-way interaction effects. Can we estimate an interaction effect between A and B? We create a new variable called `AxB` by multiplying `A` and `B`
+
+```{r}
+fullfact <-fullfact %>% 
+  mutate(AxB=A*B)
+
+fullfact
+```
+
+```{r}
+cor(fullfact)
+```
+
+Also the interaction effect is not correlated with other variables. 
+
+## Exercise
+
+Try out other interactions. Use at least one 3-way interaction as the following example.
+
+
+```{r}
+
+fullfact<-fullfact %>% 
+  mutate(AxC=A*C , AxBxC=A*B*C)
+
+```
+
+
+```{r}
+cor(fullfact)
+```
+
+
+
+## Orthogonal Arrays
+
+Now, lets investigate an orthogonal array and directly create all two-way and one three way interaction effects. 
+
+
+```{r}
+
+ortharr<- (fac.design(nlevels = 2 , nfactors = 4)) %>% 
+   as.data.frame() %>% 
+  mutate(across(everything(), ~ case_when(.==2 ~-1 , .==1 ~1))) %>% 
+  mutate(AxB=A*B, AxC=A*C , AxD=A*D , BxC=B*C , BxD = B*D, CxD=C*D ,  AxBxC=A*B*C) %>% 
+  as.data.frame()
+
+ortharr
+
+```
+
+
+```{r}
+cor(ortharr)
+```
+## Exercise
+
+The design allows for several interaction effects but not for all. Which effects are problematic?
+
+
+# A quick simulation study
+
+## Generate data
+
+We run a simulation to test what happens if assumptions are violated.
+
+Lets start with a simple $2^3$ design as we used it in the lecture. We use an orthogonal array
+
+```{r}
+sim_data<- fac.design(nlevels = 2 , nfactors = 3 , replications = 100, repeat.only = TRUE) %>% as.data.frame() %>% 
+  mutate(across(everything(), ~ case_when(.==2 ~-1 , .==1 ~1))) %>% 
+  mutate(AxB=A*B, AxC=A*C , BxC=B*C) %>% 
+  as.data.frame()
+
+kable(sim_data) %>% kable_styling() %>% scroll_box(width = "800px", height = "500px")
+
+
+unique(sim_data)
+
+cor(sim_data)
+```
+
+## Model with main effects
+
+Lets assume we have a continuous outcome variable and no interaction effects
+
+$$Y=\widehat{Y}+\epsilon = cons+a*A+b*B+c*C+\epsilon$$
+
+We simulate the outcome by making up parameters (it can be any value), and substitute the values of our factors and parameters into the model equation. This is the predicted outcome $\widehat{Y}$. We then add a normally distributed error to add a random part to our data. This results in $Y$. The function `rnorm()` draws randomly from a normal distribution. The data now mimics a real dataset. A good simulation is hardly distinguishable from real data. 
+
+
+```{r}
+cons= 2
+a=10
+b=20
+c=15
+
+sim_data<-sim_data %>% 
+  mutate(Y_hat=cons +a*A+b*B+c*C,
+         epsilon=rnorm(nrow(sim_data),mean=0, sd=4),
+         Y=Y_hat+epsilon)
+
+```
+
+
+```{r}
+kable(sim_data) %>% kable_styling() %>% scroll_box(width = "800px", height = "500px")
+
+```
+
+In a real dataset we will not be able to observe $\widehat{Y}$ and $\epsilon$. Therefore, we delete it now.
+
+```{r}
+sim_data$Y_hat = NULL 
+sim_data$epsilon = NULL
+```
+
+Having simulated the data, we can now test the design by estimating a linear regression model. If we can retrieve our parameters, our design performs well. We can use this simulation to test our design, to determine the sample size and to assure that our models we envision will work.
+
+
+```{r}
+summary(lm(Y~A+B+C, data = sim_data))
+```
+
+We can easily recover our parameters, they seem unbiased and are highly significant. So with 400 observations, we can easily do the experiment when our assumptions of effect sizes and the error term are correct. But what would happen if an interaction effect between A and B is present? 
+
+
+## Interaction effects
+
+Now assume the true model is
+
+$$Y=cons+a*A+b*B+c*C+ab*A*B+\epsilon$$
+
+
+```{r}
+cons= 2
+a=10
+b=20
+c=15
+ab=15
+
+sim_data<-sim_data %>% 
+  mutate(Y_hat=cons +a*A+b*B+c*C+ab*AxB,
+         epsilon=rnorm(nrow(sim_data),mean=0, sd=4),
+         Y=Y_hat+epsilon)
+
+kable(sim_data) %>% kable_styling() %>% scroll_box(width = "800px", height = "500px")
+```
+
+We estimate this model, which is the true model: 
+
+$$Y=cons+a*A+b*B+c*C+ab*A*B+\epsilon$$
+## Excersise
+1. Simulate a dataset including the interaction AxB: ab=15
+2. Estimate a model with only a, b and c (main effects)
+3. Estimate a model with the interaction
+4. Estimate a model with a b and ab (imagine you did not know that C exists)
+
+```{r}
+summary(lm(Y~A+B+C+AxB, data = sim_data))
+```
+Because there is perfect correlation, we cannot estimate the interaction effect. Instead the interaction effect is added to the main effect of C. Neglecting the interaction effect, which we are forced to do with the current design, will lead to a very problematic overestimation of C. So we need a larger design. In such a design, the interaction effect must be uncorrelated with the main effects.
+
+
+Now lets try some misspecifications. 
+
+
+
+```{r}
+summary(lm(Y~A+B+C+AxB, data = sim_data))
+```
+Here we get very nicely looking model results. But the effect of C is now in AxB. We would be tempted to say there is a significant interaction effect. But this is actually the effect of C confounded with AxB. We have to be very careful here. Normally, we do not know the true model.
+
+
+We can play around with the simulation. We could, for example, change the standard deviation of our error term or the values of our coefficients. The higher the standard deviation of our error term relative to the values of our coefficients, the larger the sample size we need has to be. More on that will be part of Jens next excercise.
+
+
+
+
+## Exercise
+
+1. Repeat the simulation by changing the values of the parameters and by increasing the standard deviation of the error term.
+
+2. Take the main effects model and determine the minimum sample size you need to get estimates which are significant on a 5% level.
+
+
+
+```{r}
+sim_data_ort<- (oa.design(nlevels = 2 , nfactors = 3 , replications = 100, repeat.only = TRUE)) %>%
+  as.data.frame() %>% 
+  mutate(across(everything(), ~ case_when(.==2 ~-1 , .==1 ~1))) 
+
+
+sim_fold <- -1*sim_data_ort
+
+sim_data <- rbind(sim_data_ort,sim_fold) %>% 
+  mutate(AxB=A*B, AxC=A*C , BxC=B*C) %>% 
+  as.data.frame()
+
+
+cons= 2
+a=10
+b=20
+c=15
+ab=15
+
+sim_data<-sim_data %>% 
+  mutate(Y_hat=cons +a*A+b*B+c*C+ab*AxB,
+         epsilon=rnorm(nrow(sim_data),mean=0, sd=4),
+         Y=Y_hat+epsilon)
+
+
+summary(lm(Y~A+B+C, data = sim_data))
+
+summary(lm(Y~A+B+C+AxB, data = sim_data))
+
+summary(lm(Y~A+B+AxB, data = sim_data))
+
+
+
+```
+
+
+
